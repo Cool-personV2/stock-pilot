@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="card">
+    <h1>Employee Dashboard</h1>
+    <p>Welcome, {{ logged_in_employee.name }}.</p>
+    <p class="muted">Use the tools below to manage stock and checkout.</p>
+
+    <div class="button-row">
+        <a class="button-link" href="{{ url_for('scanner') }}">Open Scanner</a>
+        <a class="button-link" href="{{ url_for('checkout') }}">Open Checkout</a>
+        {% if logged_in_employee.is_admin %}
+            <a class="button-link" href="{{ url_for('admin_dashboard') }}">Open Admin</a>
+        {% endif %}
+    </div>
+</section>
+
+<div class="grid-2">
+    <section class="card stat-card">
+        <h3>Low Stock Alerts</h3>
+        <div class="stat-number">{{ low_stock_count }}</div>
+        <p class="muted">Products currently at or below threshold</p>
+    </section>
+
+    <section class="card">
+        <h3>Recent Activity</h3>
+        {% if recent_movements %}
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Product</th>
+                        <th>Change</th>
+                        <th>Note</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for move in recent_movements %}
+                    <tr>
+                        <td>{{ move.product.name if move.product else "Unknown" }}</td>
+                        <td>{{ move.change }}</td>
+                        <td>{{ move.note }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>No recent activity yet.</p>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}
