@@ -1,0 +1,375 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="checkout-station-shell">
+    <div class="checkout-station-top">
+        <div class="checkout-station-title">
+            <p class="eyebrow">Stock Pilot Checkout</p>
+            <h1>Checkout Station</h1>
+            <p class="section-subtitle">Fast station layout built from your sketch, trimmed to fit the page without weird scrolling.</p>
+        </div>
+        <div class="checkout-status checkout-station-status">
+            <span class="status-pill">Employee Access</span>
+            <span class="status-pill blue" id="checkoutModeBadge">Barcode Mode</span>
+        </div>
+    </div>
+
+    <div class="checkout-station-grid">
+        <section class="card station-cart-panel">
+            <div class="station-panel-head">
+                <div>
+                    <h2>Checkout Cart</h2>
+                    <p class="section-subtitle">Scanned items now stack in the cart instead of resetting to slot 1.</p>
+                </div>
+                <span class="station-slot-pill">{{ [slot_count, 8]|max }} Slots</span>
+            </div>
+
+            <div class="station-cart-list">
+                {% if cart_items %}
+                    {% for item in cart_items %}
+                    <button
+                        type="button"
+                        class="station-cart-row station-cart-row-button{% if loop.index0 == selected_index %} active{% endif %}"
+                        data-select-slot="{{ loop.index }}"
+                    >
+                        <div class="station-cart-index">{{ loop.index }}.</div>
+                        <div class="station-cart-copy">
+                            <strong>{{ item.name }}</strong>
+                            <span>
+                                Barcode {{ item.barcode }} • ${{ '%.2f'|format(item.price) }} • Qty {{ item.quantity }} in cart • {{ item.remaining_stock }} left
+                            </span>
+                        </div>
+                        <div class="station-cart-state{% if loop.index0 == selected_index %} done{% endif %}">
+                            {% if loop.index0 == selected_index %}Selected{% else %}Ready{% endif %}
+                        </div>
+                    </button>
+                    {% endfor %}
+                {% else %}
+                <div class="station-cart-row active">
+                    <div class="station-cart-index">1.</div>
+                    <div class="station-cart-copy">
+                        <strong>Waiting for first item</strong>
+                        <span>Scan or type a barcode on the right.</span>
+                    </div>
+                    <div class="station-cart-state">Waiting</div>
+                </div>
+                {% endif %}
+
+                {% for slot in range(cart_items|length + 1, slot_count + 1) %}
+                <div class="station-cart-row">
+                    <div class="station-cart-index">{{ slot }}.</div>
+                    <div class="station-cart-copy">
+                        <strong>Open slot</strong>
+                        <span>Ready for scanned item</span>
+                    </div>
+                    <div class="station-cart-state">Waiting</div>
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="station-cart-footer">
+                <div class="station-mini-readout">
+                    <span class="station-mini-label">Current Quantity</span>
+                    <strong id="stationQtyReadout">1</strong>
+                </div>
+                <div class="station-mini-readout">
+                    <span class="station-mini-label">Input Value</span>
+                    <strong id="stationInputReadout">—</strong>
+                </div>
+            </div>
+        </section>
+
+        <section class="station-actions-stack">
+            <button type="button" class="card station-rail-button" data-rail-action="update_qty">Update Qty</button>
+            <button type="button" class="card station-rail-button" data-rail-action="delete_item">Delete Item</button>
+            <button type="button" class="card station-rail-button" data-rail-action="select_item_by_number">Select Item</button>
+            <button type="button" class="card station-rail-button" data-rail-action="change_panel">Change Panel</button>
+        </section>
+
+        <div class="station-right-column">
+            <section class="card station-keypad-panel">
+                <div class="station-panel-head tight">
+                    <div>
+                        <h2>Keypad</h2>
+                        <p class="section-subtitle">Nothing runs until Enter is pressed.</p>
+                    </div>
+                </div>
+
+                <div class="station-keypad-grid">
+                    <button type="button" class="station-key">7</button>
+                    <button type="button" class="station-key">8</button>
+                    <button type="button" class="station-key">9</button>
+                    <button type="button" class="station-key">4</button>
+                    <button type="button" class="station-key">5</button>
+                    <button type="button" class="station-key">6</button>
+                    <button type="button" class="station-key">1</button>
+                    <button type="button" class="station-key">2</button>
+                    <button type="button" class="station-key">3</button>
+                    <button type="button" class="station-key station-key-alt" data-key-action="clear">C</button>
+                    <button type="button" class="station-key">0</button>
+                    <button type="button" class="station-key station-key-enter" data-key-action="enter">Ent</button>
+                </div>
+
+                <div class="station-mode-row">
+                    <button type="button" class="station-mode-button active" data-mode="barcode">Barcode</button>
+                    <button type="button" class="station-mode-button" data-mode="item">Item #</button>
+                    <button type="button" class="station-mode-button" data-mode="qty">New Qty</button>
+                </div>
+            </section>
+
+            <section class="card station-receive-panel">
+                <div class="station-panel-head tight">
+                    <div>
+                        <h2>Receive Box</h2>
+                        <p class="section-subtitle">Shared input box for barcode, item-number, or quantity updates.</p>
+                    </div>
+                </div>
+
+                <form method="POST" class="station-entry-form" id="checkoutEntryForm">
+                    <input type="hidden" name="action" id="checkoutAction" value="scan_add">
+                    <input type="hidden" name="input_mode" id="checkoutInputMode" value="barcode">
+
+                    <input id="barcode" type="text" name="barcode" class="station-receive-input" placeholder="Scan or type barcode" required autofocus>
+
+                    <div class="station-receive-meta">
+                        <span id="stationModeText">Barcode mode ready</span>
+                        <span id="stationActionHint">Press Enter to add item</span>
+                    </div>
+
+                    <div class="station-process-row">
+                        <div class="station-qty-wrap">
+                            <label for="quantity">Qty</label>
+                            <input id="quantity" type="number" name="quantity" min="1" value="1" required>
+                        </div>
+
+                        <button type="submit" class="checkout-submit-button station-process-button" id="stationProcessButton">Process</button>
+                    </div>
+                </form>
+
+                {% if checked_out_product %}
+                <div class="station-last-item">
+                    <div class="station-last-item-head">
+                        <span class="preview-label">Selected / Last Updated</span>
+                        <span class="status-badge ok">Live</span>
+                    </div>
+                    <strong>{{ checked_out_product.name }}</strong>
+                    <div class="station-last-item-grid">
+                        <span>Barcode {{ checked_out_product.barcode }}</span>
+                        <span>${{ '%.2f'|format(checked_out_product.price) }}</span>
+                        <span>Qty in cart {{ checked_out_product.quantity }}</span>
+                        <span>Qty left {{ checked_out_product.remaining_stock }}</span>
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="station-running-total">
+                    <div class="station-last-item-head">
+                        <span class="preview-label">Running Total</span>
+                        <span class="status-badge">Live Cart</span>
+                    </div>
+
+                    <div class="station-total-strip">
+                        <div class="station-total-chip">
+                            <span>Items</span>
+                            <strong>{{ cart_line_count }}</strong>
+                        </div>
+                        <div class="station-total-chip">
+                            <span>Units</span>
+                            <strong>{{ cart_unit_total }}</strong>
+                        </div>
+                    </div>
+
+                    <div class="station-grand-total">
+                        <span>Total</span>
+                        <strong>${{ '%.2f'|format(cart_total_amount) }}</strong>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+</section>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const quantityInput = document.getElementById("quantity");
+    const barcodeInput = document.getElementById("barcode");
+    const inputReadout = document.getElementById("stationInputReadout");
+    const qtyReadout = document.getElementById("stationQtyReadout");
+    const keypadButtons = document.querySelectorAll(".station-key");
+    const modeButtons = document.querySelectorAll(".station-mode-button");
+    const railButtons = document.querySelectorAll(".station-rail-button");
+    const cartRowButtons = document.querySelectorAll("[data-select-slot]");
+    const modeText = document.getElementById("stationModeText");
+    const modeBadge = document.getElementById("checkoutModeBadge");
+    const actionHint = document.getElementById("stationActionHint");
+    const actionInput = document.getElementById("checkoutAction");
+    const inputMode = document.getElementById("checkoutInputMode");
+    const processButton = document.getElementById("stationProcessButton");
+    const form = document.getElementById("checkoutEntryForm");
+    const qtyWrap = document.querySelector(".station-qty-wrap");
+
+    function focusBarcodeInput() {
+        window.requestAnimationFrame(() => {
+            barcodeInput.focus();
+            barcodeInput.select();
+        });
+    }
+
+    const modeConfig = {
+        barcode: {
+            action: "scan_add",
+            badge: "Barcode Mode",
+            text: "Barcode mode ready",
+            hint: "Press Enter to add item",
+            placeholder: "Scan or type barcode",
+            button: "Process",
+            showQty: true,
+        },
+        item: {
+            action: "select_item_by_number",
+            badge: "Item Select",
+            text: "Item-number mode ready",
+            hint: "Press Enter to select cart item",
+            placeholder: "Type cart item number",
+            button: "Select",
+            showQty: false,
+        },
+        qty: {
+            action: "update_qty",
+            badge: "Qty Update",
+            text: "Quantity update mode ready",
+            hint: "Press Enter to update selected item",
+            placeholder: "Type new quantity",
+            button: "Update",
+            showQty: false,
+        },
+    };
+
+    let currentMode = "barcode";
+
+    function syncReadouts() {
+        qtyReadout.textContent = quantityInput.value || "1";
+        inputReadout.textContent = barcodeInput.value.trim() || "—";
+    }
+
+    function applyMode(mode) {
+        const config = modeConfig[mode] || modeConfig.barcode;
+        currentMode = mode;
+        inputMode.value = mode;
+        actionInput.value = config.action;
+        modeText.textContent = config.text;
+        actionHint.textContent = config.hint;
+        modeBadge.textContent = config.badge;
+        barcodeInput.placeholder = config.placeholder;
+        processButton.textContent = config.button;
+        if (qtyWrap) {
+            qtyWrap.style.display = config.showQty ? "grid" : "none";
+        }
+
+        modeButtons.forEach((button) => {
+            button.classList.toggle("active", button.dataset.mode === mode);
+        });
+
+        syncReadouts();
+        focusBarcodeInput();
+    }
+
+    keypadButtons.forEach((button) => {
+        button.addEventListener("click", function () {
+            const action = button.dataset.keyAction || "";
+            const value = button.textContent.trim();
+
+            if (action === "clear") {
+                barcodeInput.value = "";
+                syncReadouts();
+                focusBarcodeInput();
+                return;
+            }
+
+            if (action === "enter") {
+                form.requestSubmit();
+                return;
+            }
+
+            barcodeInput.value += value;
+            syncReadouts();
+            focusBarcodeInput();
+        });
+    });
+
+    modeButtons.forEach((button) => {
+        button.addEventListener("click", function () {
+            applyMode(button.dataset.mode || "barcode");
+        });
+    });
+
+    railButtons.forEach((button) => {
+        button.addEventListener("click", function () {
+            const railAction = button.dataset.railAction;
+
+            if (railAction === "change_panel") {
+                if (currentMode === "barcode") {
+                    applyMode("item");
+                } else if (currentMode === "item") {
+                    applyMode("qty");
+                } else {
+                    applyMode("barcode");
+                }
+                return;
+            }
+
+            if (railAction === "delete_item") {
+                actionInput.value = "delete_item";
+                form.requestSubmit();
+                return;
+            }
+
+            if (railAction === "select_item_by_number") {
+                applyMode("item");
+                return;
+            }
+
+            if (railAction === "update_qty") {
+                applyMode("qty");
+            }
+        });
+    });
+
+    cartRowButtons.forEach((button) => {
+        button.addEventListener("click", function () {
+            barcodeInput.value = button.dataset.selectSlot || "";
+            syncReadouts();
+            actionInput.value = "select_item_by_number";
+            form.requestSubmit();
+        });
+    });
+
+    quantityInput.addEventListener("input", syncReadouts);
+    barcodeInput.addEventListener("input", syncReadouts);
+
+    document.addEventListener("click", function (event) {
+        const clickedInsideInteractiveArea = event.target.closest(
+            ".station-key, .station-mode-button, .station-rail-button, .station-cart-row-button, .station-receive-input, #quantity, .station-process-button"
+        );
+
+        if (!clickedInsideInteractiveArea) {
+            focusBarcodeInput();
+        }
+    });
+
+    document.addEventListener("visibilitychange", function () {
+        if (!document.hidden) {
+            focusBarcodeInput();
+        }
+    });
+
+    form.addEventListener("submit", function () {
+        window.setTimeout(focusBarcodeInput, 10);
+    });
+
+    applyMode("barcode");
+    syncReadouts();
+    focusBarcodeInput();
+});
+</script>
+{% endblock %}

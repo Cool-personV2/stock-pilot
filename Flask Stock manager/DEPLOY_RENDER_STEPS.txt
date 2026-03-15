@@ -1,0 +1,27 @@
+STEP 1
+Create a free account at https://render.com
+
+STEP 2
+Create a GitHub repo and upload your Flask project folder.
+
+STEP 3
+In Render dashboard click:
+New → Web Service
+
+STEP 4
+Connect your GitHub repo.
+
+STEP 5
+Render will auto-detect settings.
+
+Build Command:
+pip install -r requirements.txt
+
+Start Command:
+gunicorn app:app
+
+STEP 6
+Click Deploy.
+
+After ~2 minutes you will get a public URL like:
+https://stock-pilot.onrender.com

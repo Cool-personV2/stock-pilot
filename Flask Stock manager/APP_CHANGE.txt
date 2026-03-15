@@ -1,0 +1,9 @@
+Make this one manual app.py change so the seeded admin name becomes Macoy Mino.
+
+Find the admin setup block in /setup and change the name value from the old admin name to:
+
+Macoy Mino
+
+Do not add the admin code to any visible flash message, template text, or setup return string.
+
+If you want, next I can generate a second drag-and-drop cluster that includes a full app.py matched to your current routes and models.
